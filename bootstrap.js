@@ -1,16 +1,17 @@
 const fs=require('fs');
-const path=require('path');
+const crypto=require('crypto');
 const AdmZip=require('adm-zip');
 
-(async()=>{
-  const url=String(process.env.AUTONOMIX_SOURCE_URL||'').trim();
-  if(!/^https:\/\//.test(url)) throw new Error('AUTONOMIX_SOURCE_URL missing');
-  const r=await fetch(url);
-  if(!r.ok) throw new Error('download failed '+r.status);
-  const buf=Buffer.from(await r.arrayBuffer());
-  const zipPath=path.join(process.cwd(),'autonomix.zip');
-  fs.writeFileSync(zipPath,buf);
-  new AdmZip(zipPath).extractAllTo(process.cwd(),true);
-  fs.unlinkSync(zipPath);
-  console.log('AUTONOMIX source installed');
-})().catch(e=>{console.error(e);process.exit(1)});
+try{
+  const key=Buffer.from(String(process.env.AUTONOMIX_SOURCE_KEY||'').trim(),'base64');
+  if(key.length!==32) throw new Error('AUTONOMIX_SOURCE_KEY missing');
+  const blob=fs.readFileSync('autonomix.enc');
+  const magic=blob.subarray(0,9).toString();
+  if(magic!=='AUTONOMIX1') throw new Error('Invalid encrypted source');
+  const iv=blob.subarray(9,21),tag=blob.subarray(21,37),enc=blob.subarray(37);
+  const decipher=crypto.createDecipheriv('aes-256-gcm',key,iv);
+  decipher.setAuthTag(tag);
+  const zip=Buffer.concat([decipher.update(enc),decipher.final()]);
+  new AdmZip(zip).extractAllTo(process.cwd(),true);
+  console.log('AUTONOMIX encrypted source installed');
+}catch(e){ console.error(e); process.exit(1); }
