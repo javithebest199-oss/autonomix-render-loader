@@ -6,9 +6,9 @@ try{
   const key=Buffer.from(String(process.env.AUTONOMIX_SOURCE_KEY||'').trim(),'base64');
   if(key.length!==32) throw new Error('AUTONOMIX_SOURCE_KEY missing');
   const blob=fs.readFileSync('autonomix.enc');
-  const magic=blob.subarray(0,9).toString();
+  const magic=blob.subarray(0,10).toString();
   if(magic!=='AUTONOMIX1') throw new Error('Invalid encrypted source');
-  const iv=blob.subarray(9,21),tag=blob.subarray(21,37),enc=blob.subarray(37);
+  const iv=blob.subarray(10,22),tag=blob.subarray(22,38),enc=blob.subarray(38);
   const decipher=crypto.createDecipheriv('aes-256-gcm',key,iv);
   decipher.setAuthTag(tag);
   const zip=Buffer.concat([decipher.update(enc),decipher.final()]);
